@@ -1,6 +1,6 @@
-import React from "react";
+import React, { ElementType, ReactNode } from "react";
 
-import { GetFormById } from "@/actions/form";
+import { GetFormById, GetFormWithSubmissions } from "@/actions/form";
 
 import VisitBtn from "@/components/VisitBtn";
 import FormLinkShare from "@/components/FormLinkShare";
@@ -10,6 +10,20 @@ import { LuView } from "react-icons/lu";
 import { TbArrowBounce } from "react-icons/tb";
 import loading from "./loading";
 import { StatsCard } from "../../page";
+import { ElementsType, FormElementInstance } from "@/components/FormElements";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Row } from "react-day-picker";
+import { type } from "os";
+import { format, formatDistance } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 async function FormDetailPage({
   params,
@@ -83,10 +97,115 @@ async function FormDetailPage({
         />
       </div>
       <div className="container pt-10">
-        <SubmissionTable id={form.id} />
+        <SubmissionsTable id={form.id} />
       </div>
     </>
   );
 }
 
 export default FormDetailPage;
+type Row = { [key: string]: string } & {
+  submmittedAt: Date;
+};
+
+async function SubmissionsTable({ id }: { id: number }) {
+  const form = await GetFormWithSubmissions(id);
+  if (!form) {
+    throw new Error("Form not found");
+  }
+  const formElements = JSON.parse(form.content) as FormElementInstance[];
+
+  const columns: {
+    id: string;
+    label: string;
+    required: boolean;
+    type: ElementsType;
+  }[] = [];
+
+  formElements.forEach((element) => {
+    switch (element.type) {
+      case "TextField":
+      case "NumberField":
+      case "TextAreaField":
+      case "DateField":
+      case "SelectField":
+      case "CheckboxField":
+        columns.push({
+          id: element.id,
+          label: element.extraAttributes?.label,
+          required: element.extraAttributes?.reqired,
+          type: element.type,
+        });
+        break;
+      default:
+        break;
+    }
+  });
+
+  const rows: Row[] = [];
+  form.FormSubmissions.forEach((submission) => {
+    const content = JSON.parse(submission.content);
+    rows.push({
+      ...content,
+      submmittedAt: submission.createdAt,
+    });
+  });
+  return (
+    <>
+      <h1 className="text-2xl font-bold my-4">Submissions</h1>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.map((column) => (
+                <TableHead key={column.id} className="uppercase">
+                  {column.label}
+                </TableHead>
+              ))}
+              <TableHead className="text-muted-foreground text-right uppercase">
+                Submmited at
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={index}>
+                {columns.map((column) => (
+                  <RowCell
+                    key={column.id}
+                    type={column.type}
+                    value={row[column.id]}
+                  />
+                ))}
+
+                <TableCell className="text-muted-foreground text-right">
+                  {formatDistance(row.submmittedAt, new Date(), {
+                    addSuffix: true,
+                  })}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
+  );
+}
+
+function RowCell({ type, value }: { type: ElementsType; value: string }) {
+  let node: ReactNode = value;
+
+  switch (type) {
+    case "DateField":
+      if (!value) break;
+      const date = new Date(value);
+      node = <Badge variant={"outline"}>{format(date, "dd/MM/yyyy")}</Badge>;
+      break;
+    case "CheckboxField":
+      const checked = value === "true";
+      node = <Checkbox checked={checked} disabled />;
+      break;
+  }
+
+  return <TableCell>{node}</TableCell>;
+}

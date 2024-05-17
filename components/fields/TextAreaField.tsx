@@ -25,14 +25,19 @@ import {
 } from "../ui/form";
 import { Switch } from "../ui/switch";
 import { cn } from "@/lib/utils";
+import { BsTextareaResize } from "react-icons/bs";
+import { Textarea } from "../ui/textarea";
+import { TextFieldFormElement } from "./TextField";
+import { Slider } from "../ui/slider";
 
-const type: ElementsType = "TextField";
+const type: ElementsType = "TextAreaField";
 
 const extraAttributes = {
-  label: "Text field",
+  label: "Text area",
   helperText: "Helper text",
   required: false,
   placeholder: "Value here...",
+  rows: 3,
 };
 
 const propertiesSchema = z.object({
@@ -40,9 +45,10 @@ const propertiesSchema = z.object({
   helperText: z.string().max(200),
   required: z.boolean().default(false),
   placeholder: z.string().max(50),
+  rows: z.number().min(1).max(10),
 });
 
-export const TextFieldFormElement: FormElement = {
+export const TextAreaFormElement: FormElement = {
   type,
   construct: (id: string) => ({
     id,
@@ -50,8 +56,8 @@ export const TextFieldFormElement: FormElement = {
     extraAttributes,
   }),
   designerBtnElement: {
-    icon: MdTextFields,
-    label: "Text field",
+    icon: BsTextareaResize,
+    label: "TextArea Field",
   },
 
   designerComponent: DesignerComponent,
@@ -80,14 +86,15 @@ function DesignerComponent({
   elementInstance: FormElementInstance;
 }) {
   const element = elementInstance as CustomInstance;
-  const { label, required, placeholder, helperText } = element.extraAttributes;
+  const { label, required, placeholder, helperText, rows } =
+    element.extraAttributes;
   return (
-    <div className="flex flex-col gap-2 w-full">
+    <div className="flex flex-col gap-[-4] w-full">
       <Label>
         {label}
         {required && "*"}
       </Label>
-      <Input readOnly disabled placeholder={placeholder} />
+      <Textarea readOnly disabled placeholder={placeholder} />
       {helperText && (
         <p className="text-muted-foreground text-[0.8rem]">{helperText}</p>
       )}
@@ -112,17 +119,19 @@ function FormComponent({
   useEffect(() => {
     setError(isInvalid === true);
   }, [isInvalid]);
-  const { label, required, placeholder, helperText } = element.extraAttributes;
+  const { label, required, placeholder, helperText, rows } =
+    element.extraAttributes;
   return (
     <div className="flex flex-col gap-2 w-full">
       <Label className={cn(error && "text-red-500")}>
         {label}
         {required && "*"}
       </Label>
-      <Input
+      <Textarea
         className={cn(error && "border-red-500")}
         placeholder={placeholder}
         onChange={(e) => setValue(e.target.value)}
+        rows={rows}
         onBlur={(e) => {
           if (!submitValue) return;
           const valid = TextFieldFormElement.validate(element, e.target.value);
@@ -163,6 +172,7 @@ function PropertiesComponent({
       helperText: element.extraAttributes.helperText,
       required: element.extraAttributes.required,
       placeholder: element.extraAttributes.placeholder,
+      rows: element.extraAttributes.rows,
     },
   });
 
@@ -171,7 +181,7 @@ function PropertiesComponent({
   }, [element, form]);
 
   function applyChanges(values: propertiesFormSchemaType) {
-    const { label, placeholder, required, helperText } = values;
+    const { label, placeholder, required, helperText, rows } = values;
     updateElement(element.id, {
       ...element,
       extraAttributes: {
@@ -179,6 +189,7 @@ function PropertiesComponent({
         helperText,
         required,
         placeholder,
+        rows,
       },
     });
   }
@@ -248,6 +259,24 @@ function PropertiesComponent({
                 The helper text of the field. <br /> It will display below the
                 field
               </FormDescription>
+            </FormItem>
+          )}
+        />{" "}
+        <FormField
+          control={form.control}
+          name="rows"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Rows {form.watch("rows")}</FormLabel>
+              <FormControl>
+                <Slider
+                  defaultValue={[field.value]}
+                  min={1}
+                  max={10}
+                  step={1}
+                  onValueChange={(value) => field.onChange(value[0])}
+                />
+              </FormControl>
             </FormItem>
           )}
         />
